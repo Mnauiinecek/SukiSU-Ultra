@@ -74,6 +74,34 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import java.util.concurrent.TimeUnit
+import java.io.File
+
+private fun runRootCommand(command: String, timeoutSeconds: Long = 3): String? {
+    return try {
+        val process = ProcessBuilder("su", "-c", command)
+            .redirectErrorStream(true)
+            .start()
+
+        if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            null
+        } else {
+            val output = process.inputStream
+                .bufferedReader()
+                .use { it.readText() }
+                .trim()
+
+            if (process.exitValue() == 0 && output.isNotEmpty()) {
+                output
+            } else {
+                null
+            }
+        }
+    } catch (_: Exception) {
+        null
+    }
+}
 
 @Composable
 fun HomePagerMiuix(
@@ -230,7 +258,11 @@ private fun StatusCard(
                     true -> " <LKM>"
                     else -> " <Built-in>"
                 }
-                val workingText = "${stringResource(id = R.string.home_working)}$workingMode$workingState"
+                val workingText = "${
+                    runRootCommand(
+                        "[ -f /data/local/tmp/.custom_manager/working ] && cat /data/local/tmp/.custom_manager/working"
+                    ) ?: stringResource(id = R.string.home_working)
+                }$workingMode$workingState"
 
                 Row(
                     modifier = Modifier
@@ -473,6 +505,7 @@ private fun InfoCard(systemInfo: SystemInfo, showFullStatus: Boolean = true) {
     val susfsInfo = rememberSusfsInfo(manualHookText, inlineHookText)
     val isSusfsSupported = susfsInfo.status == SusfsStatus.Supported
     val hookTypeLabel = rememberHookTypeLabel(manualHookText, inlineHookText, tracepointHookText, unknownHookText)
+
     @Composable
     fun InfoText(
         title: String,
@@ -593,7 +626,13 @@ private fun StatusCardPermissivePreview() {
 @Composable
 private fun StatusCardJailbreakPreview() {
     StatusCard(
-        state = previewHomeScreenState(ksuVersion = 12345, lkmMode = true, isLateLoadMode = true, superuserCount = 5, moduleCount = 10),
+        state = previewHomeScreenState(
+            ksuVersion = 12345,
+            lkmMode = true,
+            isLateLoadMode = true,
+            superuserCount = 5,
+            moduleCount = 10
+        ),
         actions = HomeActions({}, {}, {}, {})
     )
 }
@@ -669,7 +708,13 @@ private fun HomeScreenPermissivePreview() {
 @Preview(name = "Home Jailbreak", showBackground = true)
 @Composable
 private fun HomeScreenJailbreakPreview() {
-    HomeScreenPreviewContent(ksuVersion = 12345, lkmMode = true, isLateLoadMode = true, superuserCount = 5, moduleCount = 10)
+    HomeScreenPreviewContent(
+        ksuVersion = 12345,
+        lkmMode = true,
+        isLateLoadMode = true,
+        superuserCount = 5,
+        moduleCount = 10
+    )
 }
 
 private fun previewHomeScreenState(
